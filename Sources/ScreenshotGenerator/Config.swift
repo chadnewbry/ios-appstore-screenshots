@@ -63,15 +63,15 @@ struct ScreenshotConfig: Codable {
                 pillTextColor: "#000000",
                 subtitleColor: "#000000",
                 deviceFrameColor: "#1C1C1E",
-                headerFontSizeFraction: 0.038,
-                subtitleFontSizeFraction: 0.035,
-                topPaddingFraction: 0.049,
+                headerFontSizeFraction: 0.053,
+                subtitleFontSizeFraction: 0.066,
+                topPaddingFraction: 0.07,
                 subtitleMaxWidthFraction: 0.85,
                 shadowBlur: 25,
                 shadowOpacity: 0.15,
-                pillCornerRadiusFraction: 0.5,
-                pillSubtitleGapFraction: 0.007,
-                subtitleDeviceGapFraction: 0.028
+                pillCornerRadiusFraction: 0.16,
+                pillSubtitleGapFraction: 0.035,
+                subtitleDeviceGapFraction: 0.08
             ),
             screenshots: [
                 ScreenshotEntry(header: "✨ Feature One", subtitle: "A great feature of your app", screenshotPath: "01.png"),

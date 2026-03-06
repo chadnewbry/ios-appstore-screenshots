@@ -124,7 +124,8 @@ do {
     print("Loaded config: \(config.screenshots.count) screenshots, \(config.devices.count) devices")
     print("Generating up to \(config.screenshotCount) screenshots per device...\n")
 
-    let renderer = Renderer(config: config, projectDir: resolvedProjectDir)
+    let configDir = (configPath as NSString).deletingLastPathComponent
+    let renderer = Renderer(config: config, projectDir: resolvedProjectDir, configDir: configDir)
     try renderer.renderAll()
 
     print("\nDone! Screenshots saved to \(resolvedProjectDir)/\(config.outputDirectory)/")

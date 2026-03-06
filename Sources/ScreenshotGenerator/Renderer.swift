@@ -5,14 +5,21 @@ import ImageIO
 class Renderer {
     let config: ScreenshotConfig
     let projectDir: String
+    let configDir: String
 
-    init(config: ScreenshotConfig, projectDir: String) {
+    init(config: ScreenshotConfig, projectDir: String, configDir: String) {
         self.config = config
         self.projectDir = projectDir
+        self.configDir = configDir
     }
 
     func renderAll() throws {
-        let screenshotsDir = (projectDir as NSString).appendingPathComponent(config.screenshotsDirectory)
+        let screenshotsDir: String
+        if config.screenshotsDirectory.hasPrefix("/") {
+            screenshotsDir = config.screenshotsDirectory
+        } else {
+            screenshotsDir = (configDir as NSString).appendingPathComponent(config.screenshotsDirectory)
+        }
         let outputBaseDir = (projectDir as NSString).appendingPathComponent(config.outputDirectory)
 
         for device in config.devices {
