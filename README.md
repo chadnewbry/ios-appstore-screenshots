@@ -121,11 +121,55 @@ If your iPhone and iPad screenshots are different files, use `screenshotPaths` i
 }
 ```
 
+## Automated Screenshot Capture with Maestro
+
+Instead of manually taking screenshots from the simulator, you can use [Maestro](https://maestro.mobile.dev) to automate the entire capture process.
+
+### Setup
+
+1. Install Maestro:
+
+```bash
+brew install maestro
+```
+
+2. Ensure the Maestro CLI is on your PATH:
+
+```bash
+export PATH="$PATH":"$HOME/.maestro/bin"
+```
+
+3. Boot an iOS Simulator and install your app.
+
+### Using the Claude Skill (Recommended)
+
+This repo includes a Claude skill at `.claude/skills/take-app-screenshots.md` that can be referenced from any iOS app project. When invoked, it will:
+
+1. Read your app's source code to discover the navigation structure (TabView, UITabBarController, etc.)
+2. Generate a custom Maestro flow YAML tailored to your app's screens
+3. Run the Maestro flow against a booted simulator to capture screenshots
+4. Copy the captured screenshots into your `App-Store-Screenshots/inputs/` directory
+5. Optionally run the ScreenshotGenerator to produce final marketing screenshots
+
+This works for both SwiftUI and UIKit apps. The skill dynamically adapts to whatever navigation pattern your app uses.
+
+### Using the Template Manually
+
+A reference Maestro flow template is available at `maestro/template-flow.yaml`. You can copy and customize it for your app:
+
+```bash
+cp maestro/template-flow.yaml /path/to/your/app/maestro/capture-screenshots.yaml
+# Edit the file: set your bundle ID, tab labels, and screen names
+maestro test /path/to/your/app/maestro/capture-screenshots.yaml
+```
+
+After Maestro runs, screenshots are saved under `~/.maestro/tests/`. Copy them to your project's `App-Store-Screenshots/inputs/` directory, then run the generator.
+
 ## Requirements
 
 - macOS 13+
 - Swift 5.9+
-- No external dependencies
+- [Maestro](https://maestro.mobile.dev) (optional, for automated screenshot capture)
 
 ## License
 

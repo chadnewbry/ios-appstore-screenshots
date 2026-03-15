@@ -1,0 +1,101 @@
+# Maestro Screenshot Capture Flow — Template
+#
+# This is a reference template showing the structure of a Maestro flow
+# for capturing App Store screenshots. It is NOT meant to be run directly.
+# Use the take-app-screenshots Claude skill to generate a flow tailored
+# to your specific app.
+#
+# Maestro docs: https://maestro.mobile.dev
+
+appId: com.example.myapp  # Replace with your app's bundle ID
+name: "Capture App Store Screenshots"
+---
+
+# ──────────────────────────────────────────────
+# 1. Launch the app with a clean state
+# ──────────────────────────────────────────────
+- launchApp:
+    appId: com.example.myapp
+    clearState: true
+
+# ──────────────────────────────────────────────
+# 2. Handle onboarding (if your app has one)
+# ──────────────────────────────────────────────
+# Dismiss or complete onboarding screens before capturing.
+# Examples:
+#
+# - tapOn: "Get Started"
+# - swipe:
+#     direction: LEFT
+# - tapOn: "Continue"
+# - tapOn: "Skip"
+
+# ──────────────────────────────────────────────
+# 3. Handle permission dialogs
+# ──────────────────────────────────────────────
+# iOS will show system permission prompts. Tap through them.
+# Examples:
+#
+# - tapOn: "Allow"                # Notifications
+# - tapOn: "Allow While Using App" # Location
+
+# ──────────────────────────────────────────────
+# 4. Capture screenshots for each key screen
+# ──────────────────────────────────────────────
+
+# -- Screenshot 1: Home / first tab --
+- waitForAnimationToEnd
+- takeScreenshot: "01-home"
+
+# -- Screenshot 2: Second tab --
+- tapOn: "Explore"         # Replace with your tab's label text
+- waitForAnimationToEnd
+- takeScreenshot: "02-explore"
+
+# -- Screenshot 3: Third tab --
+- tapOn: "Favorites"       # Replace with your tab's label text
+- waitForAnimationToEnd
+- takeScreenshot: "03-favorites"
+
+# -- Screenshot 4: Detail screen (navigate into content) --
+- tapOn: "Explore"
+- waitForAnimationToEnd
+- tapOn: "First Item"      # Tap a list item or card to open a detail view
+- waitForAnimationToEnd
+- takeScreenshot: "04-detail"
+
+# -- Screenshot 5: Settings or profile --
+- tapOn: "Settings"        # Replace with your tab's label text
+- waitForAnimationToEnd
+- takeScreenshot: "05-settings"
+
+# ──────────────────────────────────────────────
+# Tips
+# ──────────────────────────────────────────────
+#
+# Targeting elements:
+#   - tapOn: "Button Text"              # Match by visible text
+#   - tapOn:
+#       id: "accessibilityIdentifier"   # Match by accessibility ID
+#   - tapOn:
+#       text: ".*regex.*"               # Match by regex on text
+#
+# Scrolling:
+#   - scrollUntilVisible:
+#       element: "Target Element"
+#       direction: DOWN
+#
+# Typing:
+#   - tapOn:
+#       id: "searchField"
+#   - inputText: "search query"
+#   - hideKeyboard
+#
+# Waiting:
+#   - waitForAnimationToEnd             # Wait for animations
+#   - extendedWaitUntil:                # Wait for element with timeout
+#       visible: "Element Text"
+#       timeout: 5000
+#
+# Screenshots are saved to ~/.maestro/tests/<timestamp>/
+# Copy them to your App-Store-Screenshots/inputs/ directory afterward.
