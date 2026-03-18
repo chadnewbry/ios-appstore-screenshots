@@ -5,6 +5,10 @@ A Swift CLI tool that programmatically generates App Store Connect-ready marketi
 ![macOS](https://img.shields.io/badge/macOS-13%2B-blue)
 ![Swift](https://img.shields.io/badge/Swift-5.9-orange)
 
+Current version: `0.1.0`
+
+The canonical version for this repo lives in [`VERSION`](./VERSION).
+
 ## Output
 
 Each screenshot is rendered at the exact pixel dimensions required by App Store Connect:
