@@ -14,6 +14,11 @@ let package = Package(
         .executableTarget(
             name: "ScreenshotGenerator",
             path: "Sources/ScreenshotGenerator"
+        ),
+        .testTarget(
+            name: "ScreenshotGeneratorTests",
+            dependencies: ["ScreenshotGenerator"],
+            path: "Tests/ScreenshotGeneratorTests"
         )
     ]
 )

@@ -22,6 +22,17 @@ struct CLIOptions {
     var skipTemplatePrompt: Bool
 }
 
+enum CLIParseError: Error, LocalizedError {
+    case unknownArgument(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .unknownArgument(let argument):
+            return "Unknown argument: \(argument)"
+        }
+    }
+}
+
 func printUsage() {
     print("""
     Usage: ios-appstore-screenshots <command> [options]
@@ -45,8 +56,7 @@ func printUsage() {
     """)
 }
 
-func parseArgs() -> CLIOptions {
-    let args = CommandLine.arguments
+func parseArgs(_ args: [String]) throws -> CLIOptions {
     var command: CLICommand = .generate
     var projectDir: String?
     var configPath: String?
@@ -82,9 +92,7 @@ func parseArgs() -> CLIOptions {
         case "--help", "-h":
             command = .help
         default:
-            print("Unknown argument: \(args[i])")
-            printUsage()
-            exit(1)
+            throw CLIParseError.unknownArgument(args[i])
         }
         i += 1
     }
@@ -97,6 +105,16 @@ func parseArgs() -> CLIOptions {
         templateSource: templateSource,
         skipTemplatePrompt: skipTemplatePrompt
     )
+}
+
+func parseArgs() -> CLIOptions {
+    do {
+        return try parseArgs(CommandLine.arguments)
+    } catch {
+        print(error.localizedDescription)
+        printUsage()
+        exit(1)
+    }
 }
 
 // MARK: - Main
