@@ -30,14 +30,14 @@ cd ios-appstore-screenshots
 swift build -c release
 ```
 
-The binary is at `.build/release/ScreenshotGenerator`.
+The binary is at `.build/release/ios-appstore-screenshots`.
 
 ## Quick Start
 
 **1. Initialize a config in your project:**
 
 ```bash
-.build/release/ScreenshotGenerator --init --project-dir /path/to/your/project
+.build/release/ios-appstore-screenshots --init --project-dir /path/to/your/project
 ```
 
 This creates:
@@ -51,7 +51,7 @@ This creates:
 **4. Generate:**
 
 ```bash
-.build/release/ScreenshotGenerator --project-dir /path/to/your/project
+.build/release/ios-appstore-screenshots --project-dir /path/to/your/project
 ```
 
 Output lands in `App-Store-Screenshots/apple/en-US/iPhone 6.5/` and `iPad 13/`.
@@ -63,7 +63,7 @@ After a successful run, the generator can prompt you to open an automatic GitHub
 Templates live in the website repo and can be installed by template ID.
 
 ```bash
-.build/release/ScreenshotGenerator \
+.build/release/ios-appstore-screenshots \
   --project-dir /path/to/your/project \
   --template-id soft-gradient-demo
 ```
@@ -183,7 +183,7 @@ This repo includes a Claude skill at `.claude/skills/take-app-screenshots.md` th
 2. Generate a custom Maestro flow YAML tailored to your app's screens
 3. Run the Maestro flow against a booted simulator to capture screenshots
 4. Copy the captured screenshots into your `App-Store-Screenshots/inputs/` directory
-5. Optionally run the ScreenshotGenerator to produce final marketing screenshots
+5. Optionally run `ios-appstore-screenshots` to produce final marketing screenshots
 
 This works for both SwiftUI and UIKit apps. The skill dynamically adapts to whatever navigation pattern your app uses.
 
@@ -197,7 +197,7 @@ This repo now ships a Codex workflow that mirrors the Claude screenshot skill:
 2. generate `maestro/capture-screenshots.yaml`
 3. run Maestro and refine the flow if needed
 4. move captured screenshots into `App-Store-Screenshots/inputs/`
-5. optionally run `ScreenshotGenerator` for final marketing assets
+5. optionally run `ios-appstore-screenshots` for final marketing assets
 
 In Codex, open the target app repo and ask for screenshot capture help directly, for example:
 

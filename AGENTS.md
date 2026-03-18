@@ -117,7 +117,7 @@ swift build -c release
 2. Run the generator against the app project:
 
 ```bash
-.build/release/ScreenshotGenerator --project-dir /path/to/app/project
+.build/release/ios-appstore-screenshots --project-dir /path/to/app/project
 ```
 
 Expected output:
@@ -131,6 +131,6 @@ When helping with screenshot capture, Codex should:
 - generate a project-specific Maestro YAML
 - run and refine the flow when possible
 - move captured images into the generator input directory
-- optionally run `ScreenshotGenerator`
+- optionally run `ios-appstore-screenshots`
 
 Do not stop at a generic YAML example if the app source is available.

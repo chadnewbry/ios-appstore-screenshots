@@ -6,8 +6,8 @@ let _ = NSApplication.shared
 
 func printUsage() {
     print("""
-    Usage: ScreenshotGenerator --project-dir <path> [--config <path>] [--template-id <id>]
-           ScreenshotGenerator --init --project-dir <path>
+    Usage: ios-appstore-screenshots --project-dir <path> [--config <path>] [--template-id <id>]
+           ios-appstore-screenshots --init --project-dir <path>
 
     Options:
       --project-dir   Path to the project directory containing screenshots
@@ -118,7 +118,7 @@ if shouldInit {
     print("Next steps:")
     print("  1. Add your raw app screenshots to App-Store-Screenshots/inputs/")
     print("  2. Edit App-Store-Screenshots/screenshot-config.json with your headlines and colors")
-    print("  3. Run: ScreenshotGenerator --project-dir \(projectDir)")
+    print("  3. Run: ios-appstore-screenshots --project-dir \(projectDir)")
     exit(0)
 }
 
@@ -150,7 +150,7 @@ if let templateId {
 guard FileManager.default.fileExists(atPath: configPath) else {
     print("Error: Config not found at \(configPath)")
     print("Run with --init to create a default config:")
-    print("  ScreenshotGenerator --init --project-dir \(projectDir)")
+    print("  ios-appstore-screenshots --init --project-dir \(projectDir)")
     exit(1)
 }
 
