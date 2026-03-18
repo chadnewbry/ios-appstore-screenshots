@@ -114,10 +114,10 @@ If the user wants final App Store assets:
 swift build -c release
 ```
 
-2. Run the generator against the app project:
+2. From the app project root, run the generator:
 
 ```bash
-.build/release/ios-appstore-screenshots --project-dir /path/to/app/project
+.build/release/ios-appstore-screenshots --project-dir .
 ```
 
 Expected output:

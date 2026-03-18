@@ -120,7 +120,11 @@ enum TemplateSupport {
         try FileManager.default.createDirectory(at: screenshotsBaseDir, withIntermediateDirectories: true)
 
         for relativePath in manifest.files.sourceScreenshots {
-            let remoteURL = baseURL.appendingPathComponent("templates/\(templateId)/\(relativePath)")
+            let remoteURL = try remoteSourceScreenshotURL(
+                baseURL: baseURL,
+                templateId: templateId,
+                relativePath: relativePath
+            )
             let localURL = screenshotsBaseDir.appendingPathComponent(relativePath)
             try FileManager.default.createDirectory(at: localURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             try download(url: remoteURL).write(to: localURL)
@@ -339,6 +343,48 @@ enum TemplateSupport {
             throw TemplateError.invalidTemplateSource("Invalid template source URL: \(string)")
         }
         return url
+    }
+
+    private static func remoteSourceScreenshotURL(
+        baseURL: URL,
+        templateId: String,
+        relativePath: String
+    ) throws -> URL {
+        let candidatePaths = [
+            "templates/\(templateId)/source-screenshots/\(relativePath)",
+            "templates/\(templateId)/\(relativePath)"
+        ]
+
+        for path in candidatePaths {
+            let url = baseURL.appendingPathComponent(path)
+            if remoteFileExists(url: url) {
+                return url
+            }
+        }
+
+        throw TemplateError.invalidTemplateSource(
+            "Template \(templateId) is missing source screenshot \(relativePath)."
+        )
+    }
+
+    private static func remoteFileExists(url: URL) -> Bool {
+        var request = URLRequest(url: url)
+        request.httpMethod = "HEAD"
+
+        var result: Bool?
+        let semaphore = DispatchSemaphore(value: 0)
+        let task = URLSession.shared.dataTask(with: request) { _, response, _ in
+            if let httpResponse = response as? HTTPURLResponse {
+                result = (200..<300).contains(httpResponse.statusCode)
+            } else {
+                result = false
+            }
+            semaphore.signal()
+        }
+        task.resume()
+        semaphore.wait()
+
+        return result ?? false
     }
 
     private static func download(url: URL) throws -> Data {
