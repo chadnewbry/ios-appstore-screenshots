@@ -18,6 +18,7 @@ struct TemplateManifest: Codable {
         var generatedImages: [String]
     }
 
+    var schemaVersion: Int
     var templateId: String
     var name: String
     var description: String
@@ -47,6 +48,7 @@ enum TemplateError: Error, LocalizedError {
     case templateNotFound(String)
     case missingConfig(URL)
     case missingSourceScreenshot(URL)
+    case unsupportedSchemaVersion(Int, supported: Int)
     case gitHubAuthRequired(String)
     case invalidGitHubResponse(String)
     case submissionCancelled
@@ -61,6 +63,8 @@ enum TemplateError: Error, LocalizedError {
             return "Expected config at \(url.path)."
         case .missingSourceScreenshot(let url):
             return "Expected source screenshot at \(url.path)."
+        case .unsupportedSchemaVersion(let schemaVersion, let supported):
+            return "Template schema version \(schemaVersion) is not supported. This CLI supports schema version \(supported)."
         case .gitHubAuthRequired(let message):
             return message
         case .invalidGitHubResponse(let message):
@@ -72,6 +76,7 @@ enum TemplateError: Error, LocalizedError {
 }
 
 enum TemplateSupport {
+    static let supportedSchemaVersion = 1
     static let upstreamOwner = "chadnewbry"
     static let upstreamRepo = "ios-appstore-screenshots-website"
     static let upstreamBranch = "main"
@@ -96,6 +101,7 @@ enum TemplateSupport {
         let manifestURL = baseURL.appendingPathComponent(entry.manifestPath)
         let manifestData = try download(url: manifestURL)
         let manifest = try decoder.decode(TemplateManifest.self, from: manifestData)
+        try validateSupportedSchemaVersion(manifest.schemaVersion)
 
         let appStoreDir = URL(fileURLWithPath: projectDir).appendingPathComponent("App-Store-Screenshots", isDirectory: true)
         let inputsDir = appStoreDir.appendingPathComponent("inputs", isDirectory: true)
@@ -141,6 +147,7 @@ enum TemplateSupport {
         let preferredHeroImagePath = preferredHeroImagePath(from: generatedRelativePaths)
 
         let manifest = TemplateManifest(
+            schemaVersion: supportedSchemaVersion,
             templateId: templateId,
             name: projectName,
             description: "",
@@ -216,6 +223,12 @@ enum TemplateSupport {
         print("Thanks for using iOS App Store Screenshots.")
         print("If you'd like, you can add this as a template for the website so other people can reuse it.")
         print("Run the generator again in a terminal session and say yes to the GitHub PR prompt after generation.")
+    }
+
+    private static func validateSupportedSchemaVersion(_ schemaVersion: Int) throws {
+        guard schemaVersion == supportedSchemaVersion else {
+            throw TemplateError.unsupportedSchemaVersion(schemaVersion, supported: supportedSchemaVersion)
+        }
     }
 
     private static func collectSourceScreenshotPaths(config: ScreenshotConfig, configPath: String) throws -> [TemplateSourceFile] {
