@@ -34,10 +34,10 @@ The binary is at `.build/release/ios-appstore-screenshots`.
 
 ## Quick Start
 
-**1. Initialize a config in your project:**
+**1. From your app project root, initialize a config:**
 
 ```bash
-.build/release/ios-appstore-screenshots --init --project-dir /path/to/your/project
+.build/release/ios-appstore-screenshots --init --project-dir .
 ```
 
 This creates:
@@ -51,7 +51,7 @@ This creates:
 **4. Generate:**
 
 ```bash
-.build/release/ios-appstore-screenshots --project-dir /path/to/your/project
+.build/release/ios-appstore-screenshots --project-dir .
 ```
 
 Output lands in `App-Store-Screenshots/apple/en-US/iPhone 6.5/` and `iPad 13/`.
@@ -64,7 +64,7 @@ Templates live in the website repo and can be installed by template ID.
 
 ```bash
 .build/release/ios-appstore-screenshots \
-  --project-dir /path/to/your/project \
+  --project-dir . \
   --template-id soft-gradient-demo
 ```
 
@@ -186,6 +186,24 @@ This repo includes a Claude skill at `.claude/skills/take-app-screenshots.md` th
 5. Optionally run `ios-appstore-screenshots` to produce final marketing screenshots
 
 This works for both SwiftUI and UIKit apps. The skill dynamically adapts to whatever navigation pattern your app uses.
+
+### Using Cursor
+
+This repo now includes a Cursor project rule at [`.cursor/rules/ios-appstore-screenshots-workflow.mdc`](./.cursor/rules/ios-appstore-screenshots-workflow.mdc).
+
+The Cursor rule mirrors the same app-specific screenshot workflow:
+
+1. inspect the target iOS app to discover bundle ID and navigation
+2. generate `maestro/capture-screenshots.yaml`
+3. run Maestro and refine the flow if needed
+4. move captured screenshots into `App-Store-Screenshots/inputs/`
+5. optionally run `ios-appstore-screenshots` for final marketing assets
+
+In Cursor, open the target app repo and ask for screenshot capture help directly, for example:
+
+```text
+Use the ios-appstore-screenshots workflow to capture App Store screenshots for this app.
+```
 
 ### Using Codex Out of the Box
 
