@@ -32,12 +32,28 @@ swift build -c release
 
 The binary is at `.build/release/ios-appstore-screenshots`.
 
+## Commands
+
+```bash
+ios-appstore-screenshots generate
+ios-appstore-screenshots regenerate
+ios-appstore-screenshots capture-inputs
+ios-appstore-screenshots init
+ios-appstore-screenshots init-maestro
+```
+
+- `generate` renders final App Store screenshots. If `App-Store-Screenshots/inputs/` is empty and `maestro/capture-screenshots.yaml` exists, it runs Maestro first.
+- `regenerate` forces Maestro capture, then renders again.
+- `capture-inputs` runs Maestro and moves captured PNGs into the configured inputs directory.
+- `init` creates `App-Store-Screenshots/screenshot-config.json` and `App-Store-Screenshots/inputs/`.
+- `init-maestro` creates a starter `maestro/capture-screenshots.yaml` if one does not exist yet.
+
 ## Quick Start
 
 **1. From your app project root, initialize a config:**
 
 ```bash
-.build/release/ios-appstore-screenshots --init --project-dir .
+.build/release/ios-appstore-screenshots init
 ```
 
 This creates:
@@ -51,7 +67,7 @@ This creates:
 **4. Generate:**
 
 ```bash
-.build/release/ios-appstore-screenshots --project-dir .
+.build/release/ios-appstore-screenshots generate
 ```
 
 Output lands in `App-Store-Screenshots/apple/en-US/iPhone 6.5/` and `iPad 13/`.
@@ -64,8 +80,8 @@ Templates live in the website repo and can be installed by template ID.
 
 ```bash
 .build/release/ios-appstore-screenshots \
-  --project-dir . \
-  --template-id soft-gradient-demo
+  generate \
+  --template-id bloomtracker
 ```
 
 This downloads the template config and any packaged source screenshots into `App-Store-Screenshots/` before generation.
@@ -174,6 +190,37 @@ export PATH="$PATH":"$HOME/.maestro/bin"
 ```
 
 3. Boot an iOS Simulator and install your app.
+
+### Using Maestro Directly From the CLI
+
+The CLI can run Maestro without using an AI skill, but it does not try to invent an app-specific flow automatically.
+
+Typical deterministic setup:
+
+```bash
+# From your app project root
+ios-appstore-screenshots init
+ios-appstore-screenshots init-maestro
+```
+
+Then edit `maestro/capture-screenshots.yaml` for your app and run:
+
+```bash
+ios-appstore-screenshots capture-inputs
+ios-appstore-screenshots generate
+```
+
+If you want to force a fresh recapture before rendering:
+
+```bash
+ios-appstore-screenshots regenerate
+```
+
+Behavior:
+
+- `generate` uses existing inputs if they are already present.
+- `generate` runs Maestro first only when inputs are missing and a flow already exists.
+- `capture-inputs` and `regenerate` create a starter Maestro flow if one is missing, then stop so you can customize it.
 
 ### Using the Claude Skill (Recommended)
 

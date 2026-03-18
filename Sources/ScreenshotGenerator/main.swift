@@ -4,40 +4,64 @@ import AppKit
 // Bootstrap AppKit for headless emoji/font rendering
 let _ = NSApplication.shared
 
+enum CLICommand: String {
+    case generate
+    case regenerate
+    case captureInputs = "capture-inputs"
+    case initialize = "init"
+    case initMaestro = "init-maestro"
+    case help
+}
+
+struct CLIOptions {
+    var command: CLICommand
+    var projectDir: String
+    var configPath: String?
+    var templateId: String?
+    var templateSource: String
+    var skipTemplatePrompt: Bool
+}
+
 func printUsage() {
     print("""
-    Usage: ios-appstore-screenshots --project-dir <path> [--config <path>] [--template-id <id>]
-           ios-appstore-screenshots --init --project-dir <path>
+    Usage: ios-appstore-screenshots <command> [options]
+           ios-appstore-screenshots [options]
+
+    Commands:
+      generate         Generate final App Store screenshots. If inputs are missing and a Maestro flow exists, run capture first.
+      regenerate       Force Maestro capture, then regenerate final screenshots.
+      capture-inputs   Run Maestro and move captured PNGs into App-Store-Screenshots/inputs/.
+      init             Create a default screenshot config and inputs directory.
+      init-maestro     Create a starter maestro/capture-screenshots.yaml flow if one does not exist.
+      help             Show this help message.
 
     Options:
-      --project-dir   Path to the project directory containing screenshots
-      --config        Path to config file (default: <project-dir>/screenshot-config.json)
+      --project-dir   Path to the project directory containing screenshots (default: current directory)
+      --config        Path to config file (default: App-Store-Screenshots/screenshot-config.json)
       --template-id   Download a template config and source screenshots before generating
       --template-source Base URL for template data (default: official website repo)
-      --init          Generate a default config file in the project directory
       --skip-template-prompt Skip the post-generation GitHub template submission prompt
       --help, -h      Show this help message
     """)
 }
 
-func parseArgs() -> (
-    projectDir: String,
-    configPath: String?,
-    shouldInit: Bool,
-    templateId: String?,
-    templateSource: String,
-    skipTemplatePrompt: Bool
-) {
+func parseArgs() -> CLIOptions {
     let args = CommandLine.arguments
+    var command: CLICommand = .generate
     var projectDir: String?
     var configPath: String?
-    var shouldInit = false
     var templateId: String?
     var templateSource = TemplateSupport.templateSourceBaseURL
     var skipTemplatePrompt = false
 
     var i = 1
     while i < args.count {
+        if !args[i].hasPrefix("--"), let parsedCommand = CLICommand(rawValue: args[i]) {
+            command = parsedCommand
+            i += 1
+            continue
+        }
+
         switch args[i] {
         case "--project-dir":
             i += 1
@@ -52,12 +76,11 @@ func parseArgs() -> (
             i += 1
             if i < args.count { templateSource = args[i] }
         case "--init":
-            shouldInit = true
+            command = .initialize
         case "--skip-template-prompt":
             skipTemplatePrompt = true
         case "--help", "-h":
-            printUsage()
-            exit(0)
+            command = .help
         default:
             print("Unknown argument: \(args[i])")
             printUsage()
@@ -66,29 +89,35 @@ func parseArgs() -> (
         i += 1
     }
 
-    guard let dir = projectDir else {
-        print("Error: --project-dir is required")
-        printUsage()
-        exit(1)
-    }
-
-    return (dir, configPath, shouldInit, templateId, templateSource, skipTemplatePrompt)
+    return CLIOptions(
+        command: command,
+        projectDir: projectDir ?? ".",
+        configPath: configPath,
+        templateId: templateId,
+        templateSource: templateSource,
+        skipTemplatePrompt: skipTemplatePrompt
+    )
 }
 
 // MARK: - Main
 
-let (projectDir, configPathOverride, shouldInit, templateId, templateSource, skipTemplatePrompt) = parseArgs()
+let options = parseArgs()
+
+if options.command == .help {
+    printUsage()
+    exit(0)
+}
 
 let resolvedProjectDir: String
-if projectDir.hasPrefix("/") {
-    resolvedProjectDir = projectDir
+if options.projectDir.hasPrefix("/") {
+    resolvedProjectDir = options.projectDir
 } else {
-    resolvedProjectDir = (FileManager.default.currentDirectoryPath as NSString).appendingPathComponent(projectDir)
+    resolvedProjectDir = (FileManager.default.currentDirectoryPath as NSString).appendingPathComponent(options.projectDir)
 }
 
 let appStoreDir = (resolvedProjectDir as NSString).appendingPathComponent("App-Store-Screenshots")
 
-if shouldInit {
+if options.command == .initialize {
     let configPath = (appStoreDir as NSString).appendingPathComponent("screenshot-config.json")
     if FileManager.default.fileExists(atPath: configPath) {
         print("Config already exists at \(configPath)")
@@ -118,8 +147,19 @@ if shouldInit {
     print("Next steps:")
     print("  1. Add your raw app screenshots to App-Store-Screenshots/inputs/")
     print("  2. Edit App-Store-Screenshots/screenshot-config.json with your headlines and colors")
-    print("  3. Run: ios-appstore-screenshots --project-dir \(projectDir)")
+    print("  3. Run: ios-appstore-screenshots generate")
     exit(0)
+}
+
+if options.command == .initMaestro {
+    do {
+        let flowURL = try MaestroSupport.initFlowIfNeeded(projectDir: resolvedProjectDir)
+        print("Maestro flow ready at \(flowURL.path)")
+        exit(0)
+    } catch {
+        print("Error: \(error.localizedDescription)")
+        exit(1)
+    }
 }
 
 // Look for config in App-Store-Screenshots/ first, fall back to project root
@@ -131,14 +171,14 @@ if FileManager.default.fileExists(atPath: appStoreDirConfig) {
 } else {
     defaultConfigPath = rootConfig
 }
-let configPath = configPathOverride ?? defaultConfigPath
+let configPath = options.configPath ?? defaultConfigPath
 
-if let templateId {
+if let templateId = options.templateId {
     do {
         let installedConfigURL = try TemplateSupport.installTemplate(
             templateId: templateId,
             projectDir: resolvedProjectDir,
-            templateSourceBaseURL: templateSource
+            templateSourceBaseURL: options.templateSource
         )
         print("Installed template \(templateId) to \(installedConfigURL.path)")
     } catch {
@@ -147,10 +187,53 @@ if let templateId {
     }
 }
 
+func hasInputImages(projectDir: String, configPath: String?) -> Bool {
+    let appStoreURL = URL(fileURLWithPath: projectDir, isDirectory: true)
+        .appendingPathComponent("App-Store-Screenshots", isDirectory: true)
+    let inputsDirectory: URL
+    if let configPath,
+       let config = try? ScreenshotConfig.load(from: configPath) {
+        if config.screenshotsDirectory.hasPrefix("/") {
+            inputsDirectory = URL(fileURLWithPath: config.screenshotsDirectory, isDirectory: true)
+        } else {
+            inputsDirectory = appStoreURL.appendingPathComponent(config.screenshotsDirectory, isDirectory: true)
+        }
+    } else {
+        inputsDirectory = appStoreURL.appendingPathComponent("inputs", isDirectory: true)
+    }
+
+    guard let files = try? FileManager.default.contentsOfDirectory(atPath: inputsDirectory.path) else {
+        return false
+    }
+    return files.contains { $0.lowercased().hasSuffix(".png") }
+}
+
+func runCaptureInputs(projectDir: String, configPath: String?) {
+    do {
+        try MaestroSupport.captureInputs(projectDir: projectDir, configPath: configPath)
+    } catch {
+        print("Error: \(error.localizedDescription)")
+        exit(1)
+    }
+}
+
+if options.command == .captureInputs {
+    runCaptureInputs(projectDir: resolvedProjectDir, configPath: FileManager.default.fileExists(atPath: configPath) ? configPath : nil)
+    exit(0)
+}
+
+if options.command == .regenerate {
+    runCaptureInputs(projectDir: resolvedProjectDir, configPath: FileManager.default.fileExists(atPath: configPath) ? configPath : nil)
+}
+
+if options.command == .generate && !hasInputImages(projectDir: resolvedProjectDir, configPath: FileManager.default.fileExists(atPath: configPath) ? configPath : nil) {
+    runCaptureInputs(projectDir: resolvedProjectDir, configPath: FileManager.default.fileExists(atPath: configPath) ? configPath : nil)
+}
+
 guard FileManager.default.fileExists(atPath: configPath) else {
     print("Error: Config not found at \(configPath)")
     print("Run with --init to create a default config:")
-    print("  ios-appstore-screenshots --init --project-dir \(projectDir)")
+    print("  ios-appstore-screenshots init")
     exit(1)
 }
 
@@ -165,7 +248,7 @@ do {
 
     print("\nDone! Screenshots saved to \(resolvedProjectDir)/\(config.outputDirectory)/")
 
-    if skipTemplatePrompt {
+    if options.skipTemplatePrompt {
         TemplateSupport.printContributionMessage()
     } else if TemplateSupport.promptForSubmission() {
         do {
