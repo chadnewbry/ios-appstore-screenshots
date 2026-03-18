@@ -55,7 +55,7 @@ struct ScreenshotConfig: Codable {
             screenshotCount: 4,
             locale: "en-US",
             outputDirectory: "App-Store-Screenshots",
-            screenshotsDirectory: "screenshots",
+            screenshotsDirectory: "inputs",
             theme: Theme(
                 gradientTopColor: "#FFF5F8",
                 gradientBottomColor: "#FFE0EB",

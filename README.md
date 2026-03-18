@@ -52,6 +52,36 @@ This creates:
 
 Output lands in `App-Store-Screenshots/apple/en-US/iPhone 6.5/` and `iPad 13/`.
 
+After a successful run, the generator can prompt you to open an automatic GitHub pull request that adds your setup as a reusable template on the public website.
+
+## Templates
+
+Templates live in the website repo and can be installed by template ID.
+
+```bash
+.build/release/ScreenshotGenerator \
+  --project-dir /path/to/your/project \
+  --template-id soft-gradient-demo
+```
+
+This downloads the template config and any packaged source screenshots into `App-Store-Screenshots/` before generation.
+
+### Template Contribution Flow
+
+When generation succeeds in an interactive terminal, the tool prompts:
+
+- whether you want to share your template
+- and, if you say yes, it uses your authenticated `gh` session to fork, branch, commit, and open a pull request automatically
+
+The submitted template package includes:
+
+- `config.json`
+- optional source screenshots
+- generated output images
+- `template.json` manifest metadata
+
+Use `--skip-template-prompt` if you want to suppress the contribution prompt.
+
 ## Configuration
 
 `screenshot-config.json` controls everything:
@@ -61,7 +91,7 @@ Output lands in `App-Store-Screenshots/apple/en-US/iPhone 6.5/` and `iPad 13/`.
   "screenshotCount": 4,
   "locale": "en-US",
   "outputDirectory": "App-Store-Screenshots",
-  "screenshotsDirectory": "screenshots",
+  "screenshotsDirectory": "inputs",
   "theme": {
     "gradientTopColor": "#FFF5F8",
     "gradientBottomColor": "#FFE0EB",

@@ -6,22 +6,35 @@ let _ = NSApplication.shared
 
 func printUsage() {
     print("""
-    Usage: ScreenshotGenerator --project-dir <path> [--config <path>]
+    Usage: ScreenshotGenerator --project-dir <path> [--config <path>] [--template-id <id>]
            ScreenshotGenerator --init --project-dir <path>
 
     Options:
       --project-dir   Path to the project directory containing screenshots
       --config        Path to config file (default: <project-dir>/screenshot-config.json)
+      --template-id   Download a template config and source screenshots before generating
+      --template-source Base URL for template data (default: official website repo)
       --init          Generate a default config file in the project directory
+      --skip-template-prompt Skip the post-generation GitHub template submission prompt
       --help, -h      Show this help message
     """)
 }
 
-func parseArgs() -> (projectDir: String, configPath: String?, shouldInit: Bool) {
+func parseArgs() -> (
+    projectDir: String,
+    configPath: String?,
+    shouldInit: Bool,
+    templateId: String?,
+    templateSource: String,
+    skipTemplatePrompt: Bool
+) {
     let args = CommandLine.arguments
     var projectDir: String?
     var configPath: String?
     var shouldInit = false
+    var templateId: String?
+    var templateSource = TemplateSupport.templateSourceBaseURL
+    var skipTemplatePrompt = false
 
     var i = 1
     while i < args.count {
@@ -32,8 +45,16 @@ func parseArgs() -> (projectDir: String, configPath: String?, shouldInit: Bool) 
         case "--config":
             i += 1
             if i < args.count { configPath = args[i] }
+        case "--template-id":
+            i += 1
+            if i < args.count { templateId = args[i] }
+        case "--template-source":
+            i += 1
+            if i < args.count { templateSource = args[i] }
         case "--init":
             shouldInit = true
+        case "--skip-template-prompt":
+            skipTemplatePrompt = true
         case "--help", "-h":
             printUsage()
             exit(0)
@@ -51,12 +72,12 @@ func parseArgs() -> (projectDir: String, configPath: String?, shouldInit: Bool) 
         exit(1)
     }
 
-    return (dir, configPath, shouldInit)
+    return (dir, configPath, shouldInit, templateId, templateSource, skipTemplatePrompt)
 }
 
 // MARK: - Main
 
-let (projectDir, configPathOverride, shouldInit) = parseArgs()
+let (projectDir, configPathOverride, shouldInit, templateId, templateSource, skipTemplatePrompt) = parseArgs()
 
 let resolvedProjectDir: String
 if projectDir.hasPrefix("/") {
@@ -112,6 +133,20 @@ if FileManager.default.fileExists(atPath: appStoreDirConfig) {
 }
 let configPath = configPathOverride ?? defaultConfigPath
 
+if let templateId {
+    do {
+        let installedConfigURL = try TemplateSupport.installTemplate(
+            templateId: templateId,
+            projectDir: resolvedProjectDir,
+            templateSourceBaseURL: templateSource
+        )
+        print("Installed template \(templateId) to \(installedConfigURL.path)")
+    } catch {
+        print("Error installing template: \(error.localizedDescription)")
+        exit(1)
+    }
+}
+
 guard FileManager.default.fileExists(atPath: configPath) else {
     print("Error: Config not found at \(configPath)")
     print("Run with --init to create a default config:")
@@ -129,6 +164,20 @@ do {
     try renderer.renderAll()
 
     print("\nDone! Screenshots saved to \(resolvedProjectDir)/\(config.outputDirectory)/")
+
+    if skipTemplatePrompt {
+        TemplateSupport.printContributionMessage()
+    } else if TemplateSupport.promptForSubmission() {
+        do {
+            let bundle = try TemplateSupport.buildSubmissionBundle(projectDir: resolvedProjectDir, configPath: configPath)
+            let pullRequestURL = try TemplateSupport.submitTemplate(bundle: bundle)
+            print("Opened template PR: \(pullRequestURL.absoluteString)")
+        } catch {
+            print("Template submission skipped: \(error.localizedDescription)")
+        }
+    } else {
+        TemplateSupport.printContributionMessage()
+    }
 } catch {
     print("Error: \(error)")
     exit(1)
