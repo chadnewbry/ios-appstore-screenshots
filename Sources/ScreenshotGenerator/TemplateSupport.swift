@@ -138,6 +138,7 @@ enum TemplateSupport {
 
         let sourceFiles = try collectSourceScreenshotPaths(config: config, configPath: configPath)
         let generatedRelativePaths = try collectGeneratedImagePaths(projectDir: projectDir, outputDirectory: config.outputDirectory)
+        let preferredHeroImagePath = preferredHeroImagePath(from: generatedRelativePaths)
 
         let manifest = TemplateManifest(
             templateId: templateId,
@@ -159,7 +160,7 @@ enum TemplateSupport {
             author: "Chad Newbry",
             manifestPath: "\(templateDir)/template.json",
             configPath: "\(templateDir)/config.json",
-            heroImagePath: manifest.files.generatedImages.first.map { "\(templateDir)/\($0)" },
+            heroImagePath: preferredHeroImagePath.map { "\(templateDir)/generated/\($0)" },
             createdAt: createdAt
         )
 
@@ -260,6 +261,13 @@ enum TemplateSupport {
             paths.append(relativePath)
         }
         return paths.sorted()
+    }
+
+    private static func preferredHeroImagePath(from generatedPaths: [String]) -> String? {
+        generatedPaths.first(where: { $0.contains("/iPhone ") && $0.hasSuffix("/01.png") })
+        ?? generatedPaths.first(where: { $0.contains("/iPhone ") })
+        ?? generatedPaths.first(where: { $0.contains("/iPad ") && $0.hasSuffix("/01.png") })
+        ?? generatedPaths.first
     }
 
     private static func makeTemplateID(from seed: String) -> String {
