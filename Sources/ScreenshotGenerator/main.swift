@@ -171,7 +171,7 @@ if FileManager.default.fileExists(atPath: appStoreDirConfig) {
 } else {
     defaultConfigPath = rootConfig
 }
-let configPath = options.configPath ?? defaultConfigPath
+var configPath = options.configPath ?? defaultConfigPath
 
 if let templateId = options.templateId {
     do {
@@ -180,6 +180,7 @@ if let templateId = options.templateId {
             projectDir: resolvedProjectDir,
             templateSourceBaseURL: options.templateSource
         )
+        configPath = installedConfigURL.path
         print("Installed template \(templateId) to \(installedConfigURL.path)")
     } catch {
         print("Error installing template: \(error.localizedDescription)")

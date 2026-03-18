@@ -25,12 +25,19 @@ Screenshots include:
 ## Install
 
 ```bash
+# Homebrew
+brew install chadnewbry/tap/ios-appstore-screenshots
+
+# Verify
+ios-appstore-screenshots --help
+
+# Source fallback
 git clone https://github.com/chadnewbry/ios-appstore-screenshots.git
 cd ios-appstore-screenshots
 swift build -c release
 ```
 
-The binary is at `.build/release/ios-appstore-screenshots`.
+If you build from source, the binary is at `.build/release/ios-appstore-screenshots`.
 
 ## Commands
 
