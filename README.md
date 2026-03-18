@@ -187,6 +187,26 @@ This repo includes a Claude skill at `.claude/skills/take-app-screenshots.md` th
 
 This works for both SwiftUI and UIKit apps. The skill dynamically adapts to whatever navigation pattern your app uses.
 
+### Using Codex Out of the Box
+
+Codex supports repo-local instructions through [`AGENTS.md`](./AGENTS.md).
+
+This repo now ships a Codex workflow that mirrors the Claude screenshot skill:
+
+1. inspect the target iOS app to discover bundle ID and navigation
+2. generate `maestro/capture-screenshots.yaml`
+3. run Maestro and refine the flow if needed
+4. move captured screenshots into `App-Store-Screenshots/inputs/`
+5. optionally run `ScreenshotGenerator` for final marketing assets
+
+In Codex, open the target app repo and ask for screenshot capture help directly, for example:
+
+```text
+Use the ios-appstore-screenshots workflow to capture App Store screenshots for this app.
+```
+
+If users want a reusable installed Codex skill later, this repo-local `AGENTS.md` is the zero-setup baseline.
+
 ### Using the Template Manually
 
 A reference Maestro flow template is available at `maestro/template-flow.yaml`. You can copy and customize it for your app:
