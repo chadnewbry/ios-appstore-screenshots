@@ -20,6 +20,8 @@ struct CLIOptions {
     var templateId: String?
     var templateSource: String
     var skipTemplatePrompt: Bool
+    var locale: String? = nil
+    var allLocales: Bool = false
 }
 
 enum CLIParseError: Error, LocalizedError {
@@ -52,7 +54,18 @@ func printUsage() {
       --template-id   Download a template config and source screenshots before generating
       --template-source Base URL for template data (default: official website repo)
       --skip-template-prompt Skip the post-generation GitHub template submission prompt
+      --locale <code> Operate on a single language variant from config.locales (e.g. de-DE).
+                      With capture-inputs: relaunch the app in that language via Maestro.
+                      With generate: frame inputs/<code>/ using that locale's captions → output/<code>/.
+      --all-locales   Same as --locale but for every entry in config.locales (loops all languages).
       --help, -h      Show this help message
+
+    Localized screenshots (per-language):
+      1. Add a `locales` array to the config: each { code, appleLanguages, screenshots:[{header,subtitle}] }.
+      2. Make the Maestro flow force language: launchApp arguments -AppleLanguages: "${APPLE_LANGUAGES}".
+      3. Capture:  ios-appstore-screenshots capture-inputs --all-locales
+      4. Generate: ios-appstore-screenshots generate --all-locales
+      Requires the app itself to be localized (String Catalog) so the UI renders in each language.
     """)
 }
 
@@ -63,6 +76,8 @@ func parseArgs(_ args: [String]) throws -> CLIOptions {
     var templateId: String?
     var templateSource = TemplateSupport.templateSourceBaseURL
     var skipTemplatePrompt = false
+    var locale: String? = nil
+    var allLocales = false
 
     var i = 1
     while i < args.count {
@@ -89,6 +104,11 @@ func parseArgs(_ args: [String]) throws -> CLIOptions {
             command = .initialize
         case "--skip-template-prompt":
             skipTemplatePrompt = true
+        case "--locale":
+            i += 1
+            if i < args.count { locale = args[i] }
+        case "--all-locales":
+            allLocales = true
         case "--help", "-h":
             command = .help
         default:
@@ -103,7 +123,9 @@ func parseArgs(_ args: [String]) throws -> CLIOptions {
         configPath: configPath,
         templateId: templateId,
         templateSource: templateSource,
-        skipTemplatePrompt: skipTemplatePrompt
+        skipTemplatePrompt: skipTemplatePrompt,
+        locale: locale,
+        allLocales: allLocales
     )
 }
 
@@ -227,17 +249,42 @@ func hasInputImages(projectDir: String, configPath: String?) -> Bool {
     return files.contains { $0.lowercased().hasSuffix(".png") }
 }
 
-func runCaptureInputs(projectDir: String, configPath: String?) {
+func runCaptureInputs(projectDir: String, configPath: String?, locale: String? = nil, appleLanguages: String? = nil) {
     do {
-        try MaestroSupport.captureInputs(projectDir: projectDir, configPath: configPath)
+        try MaestroSupport.captureInputs(projectDir: projectDir, configPath: configPath, locale: locale, appleLanguages: appleLanguages)
     } catch {
         print("Error: \(error.localizedDescription)")
         exit(1)
     }
 }
 
+// Capture raw screenshots for one or more languages. With --all-locales /
+// --locale, relaunch the app per language (via Maestro launch args) so each
+// captured screen renders localized, routed into inputs/<code>/.
+func runLocalizedCapture(projectDir: String, configPath: String, locale: String?, allLocales: Bool) {
+    guard let config = try? ScreenshotConfig.load(from: configPath), let variants = config.locales, !variants.isEmpty else {
+        print("Error: --locale/--all-locales capture needs a `locales` array in \(configPath).")
+        exit(1)
+    }
+    let selected = variants.filter { locale == nil || $0.code == locale }
+    guard !selected.isEmpty else {
+        print("Error: no locale variant\(locale.map { " matching \($0)" } ?? "") in config.locales.")
+        exit(1)
+    }
+    for v in selected {
+        print("\n[capture:\(v.code)] launching app with AppleLanguages=\(v.appleLanguages ?? "(unset)") ...")
+        runCaptureInputs(projectDir: projectDir, configPath: configPath, locale: v.code, appleLanguages: v.appleLanguages)
+    }
+    print("\nCaptured raw screenshots for \(selected.count) locale(s). Now run: generate \(allLocales ? "--all-locales" : "--locale \(locale ?? "")")")
+}
+
 if options.command == .captureInputs {
-    runCaptureInputs(projectDir: resolvedProjectDir, configPath: FileManager.default.fileExists(atPath: configPath) ? configPath : nil)
+    let cfg = FileManager.default.fileExists(atPath: configPath) ? configPath : nil
+    if (options.allLocales || options.locale != nil), let cfg {
+        runLocalizedCapture(projectDir: resolvedProjectDir, configPath: cfg, locale: options.locale, allLocales: options.allLocales)
+    } else {
+        runCaptureInputs(projectDir: resolvedProjectDir, configPath: cfg)
+    }
     exit(0)
 }
 
@@ -258,14 +305,31 @@ guard FileManager.default.fileExists(atPath: configPath) else {
 
 do {
     let config = try ScreenshotConfig.load(from: configPath)
-    print("Loaded config: \(config.screenshots.count) screenshots, \(config.devices.count) devices")
-    print("Generating up to \(config.screenshotCount) screenshots per device...\n")
-
     let configDir = (configPath as NSString).deletingLastPathComponent
-    let renderer = Renderer(config: config, projectDir: resolvedProjectDir, configDir: configDir)
-    try renderer.renderAll()
 
-    print("\nDone! Screenshots saved to \(resolvedProjectDir)/\(config.outputDirectory)/")
+    if options.allLocales || options.locale != nil {
+        let variants = (config.locales ?? []).filter { options.locale == nil || $0.code == options.locale }
+        guard !variants.isEmpty else {
+            let suffix = options.locale.map { " matching --locale \($0)" } ?? ""
+            print("Error: no locale variants in config.locales\(suffix). Add a `locales` array to the config.")
+            exit(1)
+        }
+        print("Generating localized screenshots for \(variants.count) locale(s): \(variants.map { $0.code }.joined(separator: ", "))\n")
+        for variant in variants {
+            let lconfig = config.localized(for: variant)
+            print("[\(variant.code)] \(lconfig.screenshots.count) screenshots from \(lconfig.screenshotsDirectory)/ ...")
+            let renderer = Renderer(config: lconfig, projectDir: resolvedProjectDir, configDir: configDir)
+            try renderer.renderAll()
+            print("[\(variant.code)] → \(resolvedProjectDir)/\(lconfig.outputDirectory)/")
+        }
+        print("\nDone! Localized screenshots generated for \(variants.count) locale(s).")
+    } else {
+        print("Loaded config: \(config.screenshots.count) screenshots, \(config.devices.count) devices")
+        print("Generating up to \(config.screenshotCount) screenshots per device...\n")
+        let renderer = Renderer(config: config, projectDir: resolvedProjectDir, configDir: configDir)
+        try renderer.renderAll()
+        print("\nDone! Screenshots saved to \(resolvedProjectDir)/\(config.outputDirectory)/")
+    }
 
     if options.skipTemplatePrompt {
         TemplateSupport.printContributionMessage()

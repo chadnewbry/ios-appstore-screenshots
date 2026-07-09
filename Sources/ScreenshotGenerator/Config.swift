@@ -8,6 +8,23 @@ struct ScreenshotConfig: Codable {
     var theme: Theme
     var screenshots: [ScreenshotEntry]
     var devices: [DeviceConfig]
+    /// Optional per-language variants. When present, `generate --all-locales`
+    /// (or `--locale <code>`) renders one framed screenshot set per entry:
+    /// raw inputs are read from `<screenshotsDirectory>/<code>/` and framed
+    /// output goes to `<outputDirectory>/<code>/`, using the variant's captions.
+    var locales: [LocaleVariant]? = nil
+
+    struct LocaleVariant: Codable {
+        /// App Store locale code, e.g. "de-DE", "ja", "ar-SA".
+        var code: String
+        /// Value for the app's `-AppleLanguages` launch argument used by the
+        /// Maestro capture flow to force the app UI into this language,
+        /// e.g. "(de)", "(ja)", "(ar)". Optional; capture may set it externally.
+        var appleLanguages: String?
+        /// Translated captions, in the SAME order as the base `screenshots`.
+        /// `screenshotPath` is reused from the base entry at the same index.
+        var screenshots: [ScreenshotEntry]
+    }
 
     struct Theme: Codable {
         var gradientTopColor: String
@@ -102,5 +119,24 @@ struct ScreenshotConfig: Codable {
                 )
             ]
         )
+    }
+
+    /// Derives a single-locale config for a language variant: swaps in the
+    /// variant's translated captions (reusing each base entry's screenshotPath
+    /// by index) and routes inputs/outputs into a per-locale subdirectory.
+    func localized(for variant: LocaleVariant) -> ScreenshotConfig {
+        var copy = self
+        copy.locale = variant.code
+        copy.screenshotsDirectory = (screenshotsDirectory as NSString).appendingPathComponent(variant.code)
+        copy.outputDirectory = (outputDirectory as NSString).appendingPathComponent(variant.code)
+        copy.screenshots = variant.screenshots.enumerated().map { index, entry in
+            var e = entry
+            if e.screenshotPath.isEmpty, index < screenshots.count {
+                e.screenshotPath = screenshots[index].screenshotPath
+            }
+            return e
+        }
+        copy.locales = nil
+        return copy
     }
 }

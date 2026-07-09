@@ -42,7 +42,12 @@ enum MaestroSupport {
         return flowURL
     }
 
-    static func captureInputs(projectDir: String, configPath: String?) throws {
+    static func captureInputs(
+        projectDir: String,
+        configPath: String?,
+        locale: String? = nil,
+        appleLanguages: String? = nil
+    ) throws {
         let flowURL = try initFlowIfNeeded(projectDir: projectDir)
         guard FileManager.default.fileExists(atPath: flowURL.path) else {
             throw MaestroError.flowTemplateCreated(flowURL)
@@ -58,8 +63,14 @@ enum MaestroSupport {
             throw MaestroError.flowTemplateCreated(flowURL)
         }
 
-        try runMaestroTest(flowURL: flowURL, projectDir: projectDir)
-        let destinationDir = try resolveInputsDirectory(projectDir: projectDir, configPath: configPath)
+        var extraEnv: [String: String] = [:]
+        if let appleLanguages { extraEnv["APPLE_LANGUAGES"] = appleLanguages }
+        if let locale {
+            extraEnv["LOCALE_CODE"] = locale
+            extraEnv["APPLE_LOCALE"] = locale.replacingOccurrences(of: "-", with: "_")
+        }
+        try runMaestroTest(flowURL: flowURL, projectDir: projectDir, extraEnv: extraEnv)
+        let destinationDir = try resolveInputsDirectory(projectDir: projectDir, configPath: configPath, locale: locale)
         try moveScreenshots(
             named: screenshotNames,
             fromProjectDir: projectDir,
@@ -67,32 +78,43 @@ enum MaestroSupport {
         )
     }
 
-    private static func resolveInputsDirectory(projectDir: String, configPath: String?) throws -> URL {
+    private static func resolveInputsDirectory(projectDir: String, configPath: String?, locale: String? = nil) throws -> URL {
         let appStoreDir = URL(fileURLWithPath: projectDir, isDirectory: true)
             .appendingPathComponent("App-Store-Screenshots", isDirectory: true)
 
-        if let configPath {
-            let config = try ScreenshotConfig.load(from: configPath)
-            let directory: URL
+        var directory: URL
+        if let configPath, let config = try? ScreenshotConfig.load(from: configPath) {
             if config.screenshotsDirectory.hasPrefix("/") {
                 directory = URL(fileURLWithPath: config.screenshotsDirectory, isDirectory: true)
             } else {
                 directory = appStoreDir.appendingPathComponent(config.screenshotsDirectory, isDirectory: true)
             }
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            return directory
+        } else {
+            directory = appStoreDir.appendingPathComponent("inputs", isDirectory: true)
         }
 
-        let defaultDirectory = appStoreDir.appendingPathComponent("inputs", isDirectory: true)
-        try FileManager.default.createDirectory(at: defaultDirectory, withIntermediateDirectories: true)
-        return defaultDirectory
+        // Route per-language captures into a locale subdirectory so `generate
+        // --locale <code>` finds them at `<screenshotsDirectory>/<code>/`.
+        if let locale {
+            directory = directory.appendingPathComponent(locale, isDirectory: true)
+        }
+
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
     }
 
-    private static func runMaestroTest(flowURL: URL, projectDir: String) throws {
+    private static func runMaestroTest(flowURL: URL, projectDir: String, extraEnv: [String: String] = [:]) throws {
         let process = Process()
         process.currentDirectoryURL = URL(fileURLWithPath: projectDir, isDirectory: true)
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["maestro", "test", flowURL.path]
+        // Maestro takes flow parameters via `-e KEY=VALUE`; the capture flow
+        // interpolates ${APPLE_LANGUAGES}/${APPLE_LOCALE} into launchApp args
+        // to force the app UI into the target language.
+        var maestroArgs = ["maestro", "test", flowURL.path]
+        for (key, value) in extraEnv.sorted(by: { $0.key < $1.key }) {
+            maestroArgs += ["-e", "\(key)=\(value)"]
+        }
+        process.arguments = maestroArgs
         process.standardInput = FileHandle.standardInput
         process.standardOutput = FileHandle.standardOutput
         process.standardError = FileHandle.standardError
