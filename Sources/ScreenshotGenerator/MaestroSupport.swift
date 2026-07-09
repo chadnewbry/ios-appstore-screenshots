@@ -69,6 +69,21 @@ enum MaestroSupport {
             extraEnv["LOCALE_CODE"] = locale
             extraEnv["APPLE_LOCALE"] = locale.replacingOccurrences(of: "-", with: "_")
         }
+
+        // Sign-in credentials for gated apps → forwarded to the Maestro flow as
+        // ${LOGIN_EMAIL} / ${LOGIN_PASSWORD}. Env vars win over config so the
+        // password can stay out of a committed config.
+        let processEnv = ProcessInfo.processInfo.environment
+        var loginEmail = processEnv["SCREENSHOT_LOGIN_EMAIL"]
+        var loginPassword = processEnv["SCREENSHOT_LOGIN_PASSWORD"]
+        if (loginEmail == nil || loginPassword == nil),
+           let configPath, let config = try? ScreenshotConfig.load(from: configPath) {
+            loginEmail = loginEmail ?? config.login?.email
+            loginPassword = loginPassword ?? config.login?.password
+        }
+        if let loginEmail { extraEnv["LOGIN_EMAIL"] = loginEmail }
+        if let loginPassword { extraEnv["LOGIN_PASSWORD"] = loginPassword }
+
         try runMaestroTest(flowURL: flowURL, projectDir: projectDir, extraEnv: extraEnv)
         let destinationDir = try resolveInputsDirectory(projectDir: projectDir, configPath: configPath, locale: locale)
         try moveScreenshots(

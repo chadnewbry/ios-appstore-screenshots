@@ -13,6 +13,17 @@ struct ScreenshotConfig: Codable {
     /// raw inputs are read from `<screenshotsDirectory>/<code>/` and framed
     /// output goes to `<outputDirectory>/<code>/`, using the variant's captions.
     var locales: [LocaleVariant]? = nil
+    /// Optional sign-in credentials for apps gated behind a login before
+    /// screenshots can be captured. Forwarded to the Maestro flow as the
+    /// `${LOGIN_EMAIL}` / `${LOGIN_PASSWORD}` parameters. Environment variables
+    /// `SCREENSHOT_LOGIN_EMAIL` / `SCREENSHOT_LOGIN_PASSWORD` take precedence,
+    /// so the password can be kept out of the committed config.
+    var login: Login? = nil
+
+    struct Login: Codable {
+        var email: String?
+        var password: String?
+    }
 
     struct LocaleVariant: Codable {
         /// App Store locale code, e.g. "de-DE", "ja", "ar-SA".

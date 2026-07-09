@@ -66,6 +66,13 @@ func printUsage() {
       3. Capture:  ios-appstore-screenshots capture-inputs --all-locales
       4. Generate: ios-appstore-screenshots generate --all-locales
       Requires the app itself to be localized (String Catalog) so the UI renders in each language.
+
+    Login for gated apps (Maestro signs in before capturing):
+      Provide credentials via env (preferred — keeps the password out of the config):
+        export SCREENSHOT_LOGIN_EMAIL=you@example.com SCREENSHOT_LOGIN_PASSWORD=secret
+      or a `login: { email, password }` block in the config. Either way the tool
+      forwards them to the flow as ${LOGIN_EMAIL} / ${LOGIN_PASSWORD}; the Maestro
+      flow enters them (inputText) before the screenshot steps. Env wins over config.
     """)
 }
 
