@@ -19,6 +19,12 @@ struct ScreenshotConfig: Codable {
     /// `SCREENSHOT_LOGIN_EMAIL` / `SCREENSHOT_LOGIN_PASSWORD` take precedence,
     /// so the password can be kept out of the committed config.
     var login: Login? = nil
+    /// Extra launch arguments passed when the tool launches the app via
+    /// `simctl` before running the Maestro flow (e.g. ["--screenshot-mode"]).
+    /// The tool also injects `-AppleLanguages`/`-AppleLocale` per locale — this
+    /// is how the app UI is forced into each language (Maestro's launchApp args
+    /// don't interpolate reliably, so the tool owns the language-forcing launch).
+    var launchArguments: [String]? = nil
 
     struct Login: Codable {
         var email: String?

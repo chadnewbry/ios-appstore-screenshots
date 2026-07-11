@@ -84,6 +84,20 @@ enum MaestroSupport {
         if let loginEmail { extraEnv["LOGIN_EMAIL"] = loginEmail }
         if let loginPassword { extraEnv["LOGIN_PASSWORD"] = loginPassword }
 
+        // Force the app UI into the target language by launching it ourselves
+        // via simctl with -AppleLanguages BEFORE Maestro navigates. Maestro's
+        // own launchApp arguments don't interpolate the language reliably, so
+        // the tool owns the launch and the flow should just navigate/capture.
+        if let appId = appId(fromFlow: flowURL) {
+            let launchArgs = (try? ScreenshotConfig.load(from: configPath ?? ""))?.launchArguments ?? []
+            try? launchAppViaSimctl(
+                appId: appId,
+                launchArguments: launchArgs,
+                appleLanguages: appleLanguages,
+                locale: locale
+            )
+        }
+
         try runMaestroTest(flowURL: flowURL, projectDir: projectDir, extraEnv: extraEnv)
         let destinationDir = try resolveInputsDirectory(projectDir: projectDir, configPath: configPath, locale: locale)
         try moveScreenshots(
@@ -153,6 +167,45 @@ enum MaestroSupport {
         guard process.terminationStatus == 0 else {
             throw MaestroError.captureFailed(process.terminationStatus)
         }
+    }
+
+    /// Parse the `appId:` from a Maestro flow's YAML header.
+    private static func appId(fromFlow flowURL: URL) -> String? {
+        guard let contents = try? String(contentsOf: flowURL, encoding: .utf8) else { return nil }
+        for line in contents.split(separator: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("appId:") {
+                let value = trimmed.dropFirst("appId:".count).trimmingCharacters(in: .whitespaces)
+                let cleaned = value.replacingOccurrences(of: "\"", with: "").replacingOccurrences(of: "'", with: "")
+                if !cleaned.isEmpty, !cleaned.hasPrefix("$") { return cleaned }
+            }
+        }
+        return nil
+    }
+
+    /// Launch the app on the booted simulator via simctl, forcing the UI
+    /// language when a locale is given. Terminates first for a clean cold start.
+    private static func launchAppViaSimctl(
+        appId: String,
+        launchArguments: [String],
+        appleLanguages: String?,
+        locale: String?
+    ) throws {
+        let terminate = Process()
+        terminate.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+        terminate.arguments = ["simctl", "terminate", "booted", appId]
+        try? terminate.run(); terminate.waitUntilExit()
+
+        var args = ["simctl", "launch", "booted", appId] + launchArguments
+        if let appleLanguages { args += ["-AppleLanguages", appleLanguages] }
+        if let locale { args += ["-AppleLocale", locale.replacingOccurrences(of: "-", with: "_")] }
+
+        let launch = Process()
+        launch.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+        launch.arguments = args
+        try launch.run(); launch.waitUntilExit()
+        // Give the app a moment to render before Maestro takes over.
+        Thread.sleep(forTimeInterval: 2.5)
     }
 
     private static func moveScreenshots(named names: [String], fromProjectDir projectDir: String, to destinationDir: URL) throws {
